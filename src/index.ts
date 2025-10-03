@@ -1,4 +1,4 @@
-import express, { Application, Request, Response } from 'express';
+import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -10,7 +10,7 @@ import { rateLimitConfig } from './middleware';
 import { connectDB } from './config/database';
 import { authRoutes, categoryRoutes, imageRoutes, productRoutes } from './routes';
 
-const app: Application = express();
+const app = express();
 const PORT = process.env.PORT || 5000;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 const API_VERSION = process.env.API_VERSION || 'v1';

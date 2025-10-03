@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { Size } from '../types/models';
 
+// Convert enum to tuple for Zod
+const sizeValues = Object.values(Size) as [string, ...string[]];
+
 const imageSchema = z.object({
   url: z.string().url('Invalid URL'),
   public_id: z.string().min(1, 'Public ID is required'),
@@ -26,7 +29,7 @@ export const createProductSchema = z.object({
       .max(10, 'Cannot upload more than 10 images'),
     stock: z.number().min(0, 'Stock cannot be negative'),
     category: z.string().min(1, 'Category ID is required'),
-    size: z.array(z.enum(Size)).optional(),
+    size: z.array(z.enum(sizeValues)).optional(),
   }),
 });
 
@@ -54,7 +57,7 @@ export const updateProductSchema = z.object({
         .optional(),
       stock: z.number().min(0, 'Stock cannot be negative').optional(),
       category: z.string().min(1, 'Category ID is required').optional(),
-      size: z.array(z.enum(Size)).optional(),
+      size: z.array(z.enum(sizeValues)).optional(),
     })
     .partial(),
 });

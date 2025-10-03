@@ -205,21 +205,21 @@ export const commonSchemas = {
   pagination: z.object({
     page: z
       .string()
-      .transform((val) => parseInt(val, 10))
-      .pipe(z.number().min(1, 'Page must be at least 1'))
       .optional()
-      .default(1),
+      .default('1')
+      .transform((val) => parseInt(val, 10))
+      .pipe(z.number().min(1, 'Page must be at least 1')),
     limit: z
       .string()
+      .optional()
+      .default('10')
       .transform((val) => parseInt(val, 10))
       .pipe(
         z
           .number()
           .min(1, 'Limit must be at least 1')
           .max(100, 'Limit cannot exceed 100')
-      )
-      .optional()
-      .default(10),
+      ),
     sort: z.string().optional(),
     order: z.enum(['asc', 'desc']).optional().default('desc'),
   }),
