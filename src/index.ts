@@ -23,6 +23,20 @@ app.use(morgan('combined'));
 app.use(cors({ origin: CORS_ORIGIN }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Database connection middleware for serverless
+if (process.env.VERCEL) {
+  app.use(async (_req, _res, next) => {
+    try {
+      await connectDB();
+      next();
+    } catch (error) {
+      logger.error('Database connection failed', error);
+      next(error);
+    }
+  });
+}
+
 app.use(rateLimitConfig.general);
 
 // Routes
@@ -40,11 +54,15 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
-// Start server
-app.listen(PORT, async () => {
-  await connectDB();
-  logger.info(`Server is running on port ${PORT}`);
-  logger.info(`API Version: ${API_VERSION}`);
-  logger.info(`Health check: http://localhost:${PORT}/health`);
-});
-//
+// Start server (only in non-serverless environments)
+if (!process.env.VERCEL) {
+  app.listen(PORT, async () => {
+    await connectDB();
+    logger.info(`Server is running on port ${PORT}`);
+    logger.info(`API Version: ${API_VERSION}`);
+    logger.info(`Health check: http://localhost:${PORT}/health`);
+  });
+}
+
+// Export for Vercel serverless
+export default app;

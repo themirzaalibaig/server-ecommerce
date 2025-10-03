@@ -3,10 +3,22 @@ import path from 'path';
 import fs from 'fs';
 import { Request, Response } from 'express';
 
-// Ensure logs directory exists
-const logsDir = path.join(process.cwd(), 'logs');
-if (!fs.existsSync(logsDir)) {
+// Use /tmp for serverless environments (Vercel, AWS Lambda, etc.)
+const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+const logsDir = isServerless ? '/tmp/logs' : path.join(process.cwd(), 'logs');
+
+// Ensure logs directory exists (only if not serverless or if /tmp is writable)
+if (!isServerless && !fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
+} else if (isServerless) {
+  try {
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
+  } catch (error) {
+    // Ignore errors in serverless - we'll use console only
+    console.warn('Unable to create logs directory in serverless environment');
+  }
 }
 
 // Custom format for console output
@@ -41,15 +53,15 @@ const fileFormat = winston.format.combine(
   winston.format.prettyPrint()
 );
 
-// Create logger instance
-const logger = winston.createLogger({
-  level: process.env['LOG_LEVEL'] || 'info',
-  defaultMeta: {
-    service: 'luxuraystay-hms-backend',
-    environment: process.env['NODE_ENV'] || 'development',
-    version: process.env['npm_package_version'] || '1.0.0',
-  },
-  transports: [
+// Create logger instance with conditional file transports
+const createTransports = () => {
+  // In serverless environments, skip file transports
+  if (isServerless) {
+    return [];
+  }
+
+  // For non-serverless, use file transports
+  return [
     // Error logs - only errors
     new winston.transports.File({
       filename: path.join(logsDir, 'error.log'),
@@ -82,27 +94,22 @@ const logger = winston.createLogger({
           }),
         ]
       : []),
-  ],
+  ];
+};
 
-  // Handle uncaught exceptions and rejections
-  exceptionHandlers: [
-    new winston.transports.File({
-      filename: path.join(logsDir, 'exceptions.log'),
-      format: fileFormat,
-    }),
-  ],
-
-  rejectionHandlers: [
-    new winston.transports.File({
-      filename: path.join(logsDir, 'rejections.log'),
-      format: fileFormat,
-    }),
-  ],
-
+const logger = winston.createLogger({
+  level: process.env['LOG_LEVEL'] || 'info',
+  defaultMeta: {
+    service: 'ecommerce-backend',
+    environment: process.env['NODE_ENV'] || 'development',
+    version: process.env['npm_package_version'] || '1.0.0',
+  },
+  transports: createTransports(),
   exitOnError: false,
 });
 
-// Add console transport for non-production environments
+// Always add console transport
+// In serverless, this is the ONLY transport
 if (process.env['NODE_ENV'] !== 'production') {
   logger.add(
     new winston.transports.Console({
@@ -110,10 +117,8 @@ if (process.env['NODE_ENV'] !== 'production') {
       level: 'debug',
     })
   );
-}
-
-// Add console transport for production with limited output
-if (process.env['NODE_ENV'] === 'production') {
+} else {
+  // Production console logging (JSON format for log aggregation)
   logger.add(
     new winston.transports.Console({
       format: winston.format.combine(
@@ -121,7 +126,7 @@ if (process.env['NODE_ENV'] === 'production') {
         winston.format.errors({ stack: true }),
         winston.format.json()
       ),
-      level: 'warn', // Only warnings and errors in production console
+      level: 'info', // All logs to console in production (for Vercel/serverless)
     })
   );
 }
